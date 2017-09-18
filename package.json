@@ -1,0 +1,25 @@
+{
+  "name": "dj-dps-interpreter",
+  "version": "1.0.0",
+  "description": "Data Processing Script interpreter executes dps",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boldak/dj-dps-interpreter.git"
+  },
+  "author": "Andrey Boldak",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/boldak/dj-dps-interpreter/issues"
+  },
+  "homepage": "https://github.com/boldak/dj-dps-interpreter#readme",
+  "dependencies": {
+    "lodash-node": "^3.10.2",
+    "jsonpath": "^0.2.9",
+    "dj-dps-parser": "boldak/dj-dps-parser",
+    "dj-utils": "boldak/dj-utils"
+  }
+}
