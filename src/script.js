@@ -1,6 +1,6 @@
 
 // var Promise = require("bluebird");
-var parser = require("dj-parser");
+var parser = require("dj-dps-parser");
 var jp = require("jsonpath");
 var copy = require('dj-utils').copy;
 var $apply = require('dj-utils').apply;
