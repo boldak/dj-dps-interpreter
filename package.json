@@ -17,9 +17,10 @@
   },
   "homepage": "https://github.com/boldak/dj-dps-interpreter#readme",
   "dependencies": {
-    "lodash-node": "^3.10.2",
-    "jsonpath": "^0.2.9",
+    "bluebird": "^3.5.0",
     "dj-dps-parser": "boldak/dj-dps-parser",
-    "dj-utils": "boldak/dj-utils"
+    "dj-utils": "boldak/dj-utils",
+    "jsonpath": "^0.2.9",
+    "lodash-node": "^3.10.2"
   }
 }
