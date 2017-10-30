@@ -384,7 +384,8 @@ var Script = function(config, script, context) {
     this._config = [
         processInctruction["@async"],
         processInctruction["@all"],
-        processInctruction["@any"]
+        processInctruction["@any"],
+        processInstruction["@defaults"]
     ]
     
     config = config || [];
