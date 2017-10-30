@@ -1,4 +1,5 @@
 
+
 var Promise = require("bluebird");
 var parser = require("dj-dps-parser");
 var jp = require("jsonpath");
@@ -19,19 +20,24 @@ ScriptError.prototype.constructor = ScriptError;
 var branchIndex = 0
 var processInctruction = {
     
-    "@defaults": {
+    "@defaults":{
         name: "@defaults",
+        
         synonims: {
             "@def" : "@defaults",
             "@use" : "@defaults"
         },
+        
         "internal aliases": {
             "packages": "packages"
         },
 
         defaultProperty: {
-            "@defaults" : "packages"
+            "@defaults" : "packages",
+            "@def" : "packages",
+            "@use" : "packages"  
         },
+
         help: {
             synopsis: "Process instruction set usage of defaults packages ",
 
@@ -41,7 +47,9 @@ var processInctruction = {
             },
 
             "default param": "promise",
+            
             input:["string"],
+            
             output:"Promise",
 
             params: [{
@@ -59,8 +67,10 @@ var processInctruction = {
         },  
     
         execute: function(command, state, config) {
-            console.log("@defaults")
+            // console.log("@defaults", command)
             return new Promise(function(resolve,reject){
+
+
                 state.packages = (command.settings.packages) 
                                     ? !util.isArray(command.settings.packages)
                                         ? [command.settings.packages]
@@ -70,9 +80,9 @@ var processInctruction = {
 
                 resolve(state)
             })
-          }  
+        }  
     },
-
+    
     "@all": {
         name: "@all",
         synonims: {},
@@ -111,18 +121,18 @@ var processInctruction = {
         },  
     
         execute: function(command, state, config) {
-             console.log("@all")
+             // console.log("@all")
             return new Promise(function(resolve,reject){
                 var promises = command.settings.promises || state.head.data;
                 promises = (!util.isArray(promises)) ? [promises] : promises;
 
                 Promise.all(promises)
                     .then(function(st){
-                        console.log("@all resolved ")
+                        // console.log("@all resolved ")
                         resolve(st[0])
                     })
                     .catch(function(e){
-                        console.log("Promise.all rejected ", e)
+                        // console.log("Promise.all rejected ", e)
                         reject(e)
                     })    
             })
@@ -167,14 +177,14 @@ var processInctruction = {
             },  
           
           execute: function(command, state, config) {
-            console.log("@any")
+            // console.log("@any")
             return new Promise(function(resolve,reject){
                 var promises = command.settings.promises || state.head.data;
                 promises = (!util.isArray(promises)) ? [promises] : promises;
                 
                 Promise.any(promises)
                     .then(function(rr){
-                        console.log("@any resolved ")
+                        // console.log("@any resolved ")
                         resolve(rr)
                     })    
             })
@@ -247,7 +257,7 @@ var processInctruction = {
                         return result
                     }
                 var bb = branchIndex++;    
-                console.log("@async "+bb)
+                // console.log("@async "+bb)
                 return new Promise(function(resolve, reject) {
 
                     var parent = state.instance;
@@ -290,7 +300,7 @@ var processInctruction = {
                                                         })
                                     }
                                 })
-                            console.log("@resolve "+bb)
+                            // console.log("@resolve "+bb)
                             resolve(state)
                         })
                         .catch(function(e){
@@ -385,7 +395,7 @@ var Script = function(config, script, context) {
         processInctruction["@async"],
         processInctruction["@all"],
         processInctruction["@any"],
-        processInstruction["@defaults"]
+        processInctruction["@defaults"]
     ]
     
     config = config || [];
@@ -473,28 +483,37 @@ Script.prototype.execute = function(command, state, config) {
     var self = this;
 
     return new Promise(function(resolve, reject) {
-        var executor = self._config.map(function(item) {
-            return item.name
-        }).indexOf(command.processId);
-        executor = self._config[executor]
-
-        if(!executor){
-            self._state.packages.forEach((pkg) => {
+        let executor;
+        console.log("state: ", state)
+        if(state.packages){
+            state.packages.forEach((pkg) => {
+                console.log("test ", pkg+"."+command.processId)
                 let executor_index = self._config.map(item => item.name).indexOf(pkg+"."+command.processId);
+                console.log("index: ", executor_index)
                 if(executor && executor_index >= 0){
-                    new ScriptError("Dublicate command implementation: '" + command.processId ))
+                    reject(new ScriptError("Dublicate command implementation: '" + command.processId ))
                 }
-                executor = self._config[executor_index]                
+                executor = (executor_index >=0)
+                            ? self._config[executor_index]
+                            : executor                
             })
-        }
+        }    
+    
         
-        if(command.processId.indexOf("@") == 0)
-            executor = processInctruction[command.processId];
+        executor = (!executor)
+                    ? self._config[self._config.map(item => item.name).indexOf(command.processId)]
+                    : executor
+        
+        console.log("!founded ", executor);
+
+        // if(command.processId.indexOf("@") == 0)
+        //     executor = processInctruction[command.processId];
 
         if (!executor || !executor.execute) {
             reject(new ScriptError("Command '" + command.processId + "'  not implemented"))
             return
         }
+
         try {
            
             // console.log("PREPARE: ", command)
@@ -574,7 +593,7 @@ Script.prototype.run = function(state) {
         } catch (e) {
             reject(e)
         }
-
+        console.log("Parsed script: ",commandList)
         commandList = processInctruction.branches(commandList, state)
 
         self.executeBranch(commandList, state)
@@ -619,3 +638,15 @@ Script.prototype.config = function() {
 }
 
 module.exports = Script;
+
+
+
+
+
+
+
+
+
+
+
+
