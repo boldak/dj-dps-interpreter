@@ -18,6 +18,61 @@ ScriptError.prototype.constructor = ScriptError;
 
 var branchIndex = 0
 var processInctruction = {
+    
+    "@defaults": {
+        name: "@defaults",
+        synonims: {
+            "@def" : "@defaults",
+            "@use" : "@defaults"
+        },
+        "internal aliases": {
+            "packages": "packages"
+        },
+
+        defaultProperty: {
+            "@defaults" : "packages"
+        },
+        help: {
+            synopsis: "Process instruction set usage of defaults packages ",
+
+            name: {
+                "default": "@defaults",
+                synonims: []
+            },
+
+            "default param": "promise",
+            input:["string"],
+            output:"Promise",
+
+            params: [{
+                name: "promises",
+                synopsis: "Array of async code promises thats must be resolved",
+                type:["array of promises", "bindable"],
+                synonims: ["promises", "branches"],
+                "default value": "undefined"
+            }],
+
+            example: {
+                description: "Execute async codes",
+                code:  "@async(promise:'p[0]')\n<?json\n{\"index\":0}\n?>\nset('data')\n@sync(vars:['data[0]'], values:['data'])\n\n@async(promise:'p[1]')\n<?json\n{\"index\":1}\n?>\nset('data')\n@sync(vars:['data[1]'], values:['data'])\n@all({{p}})\nget('data')\n"
+            }
+        },  
+    
+        execute: function(command, state, config) {
+            console.log("@defaults")
+            return new Promise(function(resolve,reject){
+                state.packages = (command.settings.packages) 
+                                    ? !util.isArray(command.settings.packages)
+                                        ? [command.settings.packages]
+                                        : command.settings.packages
+                                    : undefined;     
+               
+
+                resolve(state)
+            })
+          }  
+    },
+
     "@all": {
         name: "@all",
         synonims: {},
@@ -421,6 +476,16 @@ Script.prototype.execute = function(command, state, config) {
             return item.name
         }).indexOf(command.processId);
         executor = self._config[executor]
+
+        if(!executor){
+            self._state.packages.forEach((pkg) => {
+                let executor_index = self._config.map(item => item.name).indexOf(pkg+"."+command.processId);
+                if(executor && executor_index >= 0){
+                    new ScriptError("Dublicate command implementation: '" + command.processId ))
+                }
+                executor = self._config[executor_index]                
+            })
+        }
         
         if(command.processId.indexOf("@") == 0)
             executor = processInctruction[command.processId];
