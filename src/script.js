@@ -484,12 +484,12 @@ Script.prototype.execute = function(command, state, config) {
 
     return new Promise(function(resolve, reject) {
         let executor;
-        console.log("state: ", state)
+        // console.log("state: ", state)
         if(state.packages){
             state.packages.forEach((pkg) => {
-                console.log("test ", pkg+"."+command.processId)
+                // console.log("test ", pkg+"."+command.processId)
                 let executor_index = self._config.map(item => item.name).indexOf(pkg+"."+command.processId);
-                console.log("index: ", executor_index)
+                // console.log("index: ", executor_index)
                 if(executor && executor_index >= 0){
                     reject(new ScriptError("Dublicate command implementation: '" + command.processId ))
                 }
@@ -504,7 +504,7 @@ Script.prototype.execute = function(command, state, config) {
                     ? self._config[self._config.map(item => item.name).indexOf(command.processId)]
                     : executor
         
-        console.log("!founded ", executor);
+        // console.log("!founded ", executor);
 
         // if(command.processId.indexOf("@") == 0)
         //     executor = processInctruction[command.processId];
@@ -591,9 +591,9 @@ Script.prototype.run = function(state) {
                 .config(self._config)
                 .parse(self._script);
         } catch (e) {
-            reject(e)
+            reject(new ScriptError(e.toString()))
         }
-        console.log("Parsed script: ",commandList)
+        // console.log("Parsed script: ",commandList)
         commandList = processInctruction.branches(commandList, state)
 
         self.executeBranch(commandList, state)
