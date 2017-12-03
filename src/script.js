@@ -1,23 +1,22 @@
-
-
-var Promise = require("bluebird");
-var parser = require("dj-dps-parser");
-var jp = require("jsonpath");
-var copy = require('dj-utils').copy;
-var $apply = require('dj-utils').apply;
-var $plain = require('dj-utils').plain;
+const Promise = require("bluebird");
+const parser = require("dj-dps-parser");
+const jp = require("jsonpath");
+const copy = require('dj-utils').copy;
+const $apply = require('dj-utils').apply;
+const $plain = require('dj-utils').plain;
 // var logger = require("../log").global;
-var util = require("util");
+const util = require("util");
 // var setVar = require("./impl/var/set").implementation;
 
-var ScriptError = function(message) {
-    this.message = message;
-    this.name = "";
+class ScriptError extends Error{
+    constructor(message) {
+        super();
+        this.message = message;
+        this.name = "";
+    }
 }
-ScriptError.prototype = Object.create(Error.prototype);
-ScriptError.prototype.constructor = ScriptError;
 
-var branchIndex = 0
+var branchIndex = 0;
 var processInctruction = {
     
     "@defaults":{
@@ -123,7 +122,7 @@ var processInctruction = {
         execute: function(command, state, config) {
              // console.log("@all")
             return new Promise(function(resolve,reject){
-                var promises = command.settings.promises || state.head.data;
+                let promises = command.settings.promises || state.head.data;
                 promises = (!util.isArray(promises)) ? [promises] : promises;
 
                 Promise.all(promises)
@@ -179,7 +178,7 @@ var processInctruction = {
           execute: function(command, state, config) {
             // console.log("@any")
             return new Promise(function(resolve,reject){
-                var promises = command.settings.promises || state.head.data;
+                let promises = command.settings.promises || state.head.data;
                 promises = (!util.isArray(promises)) ? [promises] : promises;
                 
                 Promise.any(promises)
@@ -241,8 +240,8 @@ var processInctruction = {
         },  
 
         execute: function(command, state, config) {
-                var getProperty = function(d, path) {
-                        var result = undefined;
+                let getProperty = function(d, path) {
+                        let result = undefined;
                         jp.apply(d, path, function(value) {
                             if (util.isUndefined(result)) {
                                 result = value;
@@ -253,64 +252,64 @@ var processInctruction = {
                                 result.push(value)
                             }
                             return value
-                        })
+                        });
                         return result
-                    }
-                var bb = branchIndex++;    
+                    };
+                let bb = branchIndex++;
                 // console.log("@async "+bb)
                 return new Promise(function(resolve, reject) {
 
-                    var parent = state.instance;
-                    var storage = copy(state.storage);
+                    let parent = state.instance;
+                    let storage = copy(state.storage);
 
-                    var s = new Script()
+                    let script = new Script()
                         .config(state.instance.config())
 
-                    s._state = {
+                    script._state = {
                         locale: state.locale,
-                        instance: s,
+                        instance: script,
                         storage: storage,
                         promises:{},
                         _lib: state._lib,
                         head: copy(state.head)
-                    }
+                    };
 
                     
                     // state.promises[command.settings.branch] = 
-                    var result = 
+                    let result =
                     new Promise(function(resolve,reject){
-                        s
+                        script
                         .executeBranch(
                             processInctruction.branches(command.settings.childs), 
-                            s._state
+                            script._state
                         )
                         .then(function(_state){
                             if(command.settings.sync.vars)
                                 command.settings.sync.vars.forEach(function(_var,index){
                                     if(util.isString(_var)){
-                                     var value = copy(
+                                     let value = copy(
                                         getProperty(
                                             _state.storage,
                                              command.settings.sync.values[index]
-                                    ))   
+                                    ));
                                      state.storage = $apply(
                                                         state.storage, {
                                                             path: _var, 
                                                             value: value 
                                                         })
                                     }
-                                })
+                                });
                             // console.log("@resolve "+bb)
                             resolve(state)
                         })
                         .catch(function(e){
                             reject(e)
                         })
-                    })
+                    });
                     
                     // res.storage = storage;
                     
-                    var _v = command.settings.promise || command.settings.as;
+                    let _v = command.settings.promise || command.settings.as;
                     
                     if(_v){
                         state.storage = $apply(state.storage, {
@@ -322,7 +321,7 @@ var processInctruction = {
                     state.head = {
                         type:"promise",
                         data: result  
-                    }
+                    };
                     resolve(state)
                 })
                 .catch(function(e){
@@ -334,13 +333,13 @@ var processInctruction = {
     branches: function(cmdList) {
         // console.log("CREATE BRANCHES: ", cmdList)
         cmdList = cmdList || [];
-        var result = [];
-        var transaction;
-        var c = 0;
-        var asyncCount = 0;
-        var syncCount = 0;
+        let result = [];
+        let transaction;
+        let c = 0;
+        let asyncCount = 0;
+        let syncCount = 0;
         try{
-            for (var i = 0; i < cmdList.length; i++) {
+            for (let i = 0; i < cmdList.length; i++) {
                 if (["@async"].indexOf(cmdList[i].processId) >= 0) asyncCount++;
                 if (["@sync"].indexOf(cmdList[i].processId) >= 0) syncCount++;
                 
@@ -362,7 +361,7 @@ var processInctruction = {
 
                 if (["@sync"].indexOf(cmdList[i].processId) >= 0 && c == 0) {
                     transaction.settings.sync = cmdList[i].settings;
-                    result.push(transaction)
+                    result.push(transaction);
                     transaction == undefined;
                     continue;
                 }
@@ -381,177 +380,172 @@ var processInctruction = {
             throw new ScriptError("Some async codes not synchronized")
         return result;
     }
-} 
+} ;
 
+class Script{
+    constructor(config, script, context) {
 
+        this._script = script;
+        this.id = branchIndex++;
+        this._config = [
+            processInctruction["@async"],
+            processInctruction["@all"],
+            processInctruction["@any"],
+            processInctruction["@defaults"]
+        ]
 
+        config = config || [];
+        this._config = this._config.concat(config)
 
-
-var Script = function(config, script, context) {
-
-    this._script = script;
-    this.id = branchIndex++;
-    this._config = [
-        processInctruction["@async"],
-        processInctruction["@all"],
-        processInctruction["@any"],
-        processInctruction["@defaults"]
-    ]
-    
-    config = config || [];
-    this._config = this._config.concat(config)
-
-    this._state = {
-        locale: "en",
-        instance: this,
-        promises: {},
-        storage: context || {},
-        head: {
-            type: undefined,
-            data: undefined
+        this._state = {
+            locale: "en",
+            instance: this,
+            promises: {},
+            storage: context || {},
+            head: {
+                type: undefined,
+                data: undefined
+            }
         }
+        // console.log("Create Script instance "+this.id)
     }
-    // console.log("Create Script instance "+this.id)
-    return this;
-}
 
-
-Script.prototype.errorState = function(msg) {
-    this._state.head = {
-        type: "error",
-        data: msg.toString()
+    errorState(msg) {
+        this._state.head = {
+            type: "error",
+            data: msg.toString()
+        };
+        delete this._state.instance;
+        return this._state;
     }
-    delete this._state.instance;
-    return this._state;
-}
 
-Script.prototype.host = function(host) {
-    if(host){
-        this._host = host;
-        return this;
+    host(host) {
+        if(host){
+            this._host = host;
+            return this;
+        }
+        return this._host
     }
-    return this._host
-}
 
-Script.prototype.execute = function(command, state, config) {
+    execute(command, state, config) {
 
-    var getProperty = function(d, path) {
-        try{
-        var result = undefined;
-        jp.apply(d, path, function(value) {
-            if (util.isUndefined(result)) {
-                result = value;
-            } else {
-                if (!util.isArray(result)) {
-                    result = [result]
+        let getProperty = function(d, path) {
+            try{
+                var result = undefined;
+                jp.apply(d, path, function(value) {
+                    if (util.isUndefined(result)) {
+                        result = value;
+                    } else {
+                        if (!util.isArray(result)) {
+                            result = [result]
+                        }
+                        result.push(value)
+                    }
+                    return value
+                })
+                return result
+            } catch (e){
+                return undefined
+            }
+        };
+
+        let applyContext = function(o, c) {
+            if (util.isObject(o)) {
+                for (let key in o) {
+                    o[key] = applyContext(o[key], c)
                 }
-                result.push(value)
-            }
-            return value
-        })
-        return result
-    } catch (e){
-        return undefined
-    }
-    }
-
-    var applyContext = function(o, c) {
-        if (util.isObject(o)) {
-            for (var key in o) {
-                o[key] = applyContext(o[key], c)
-            }
-            return o
-        }
-        if (util.isArray(o)) {
-            return o.map(function(item) {
-                return applyContext(item, c)
-            })
-        }
-        if (util.isString(o)) {
-            if (o.match(/^\{\{[\s\S]*\}\}$/)) {
-                var key = o.substring(2, o.length - 2);
-                var r = getProperty(c, key);
-                // return (r) ? copy(r) : null
-                return (r) ? r : null
-            } else {
                 return o
             }
-        }
-        return o;
+            if (util.isArray(o)) {
+                return o.map(function(item) {
+                    return applyContext(item, c)
+                })
+            }
+            if (util.isString(o)) {
+                if (o.match(/^\{\{[\s\S]*\}\}$/)) {
+                    let key = o.substring(2, o.length - 2);
+                    let r = getProperty(c, key);
+                    // return (r) ? copy(r) : null
+                    return (r) ? r : null
+                } else {
+                    return o
+                }
+            }
+            return o;
+        };
+
+        let self = this;
+
+        return new Promise(function(resolve, reject) {
+            let executor;
+            // console.log("state: ", state)
+            if(state.packages){
+                state.packages.forEach((pkg) => {
+                    // console.log("test ", pkg+"."+command.processId)
+                    let executor_index = self._config.map(item => item.name).indexOf(pkg+"."+command.processId);
+                    // console.log("index: ", executor_index)
+                    if(executor && executor_index >= 0){
+                        reject(new ScriptError("Dublicate command implementation: '" + command.processId ))
+                    }
+                    executor = (executor_index >=0)
+                        ? self._config[executor_index]
+                        : executor
+                })
+            }
+
+
+            executor = (!executor)
+                ? self._config[self._config.map(item => item.name).indexOf(command.processId)]
+                : executor;
+
+            // console.log("!founded ", executor);
+
+            // if(command.processId.indexOf("@") == 0)
+            //     executor = processInctruction[command.processId];
+
+            if (!executor || !executor.execute) {
+                reject(new ScriptError("Command '" + command.processId + "'  not implemented"))
+                return
+            }
+
+            try {
+
+                // console.log("PREPARE: ", command)
+                if(command.processId != "@async")
+                    command = applyContext(command, self._state.storage);
+                // console.log("EXEC: ", command)
+
+                let s = executor.execute(command, self._state, config);
+                if (s.then) {
+                    s
+                        .then(function(state) {
+                            resolve(state)
+                        })
+                        .catch(function(e) {
+                            reject(e)
+                        })
+
+                } else {
+                    resolve(s)
+                }
+            } catch (e) {
+                reject(e)
+            }
+        })
     }
 
-    var self = this;
-
-    return new Promise(function(resolve, reject) {
-        let executor;
-        // console.log("state: ", state)
-        if(state.packages){
-            state.packages.forEach((pkg) => {
-                // console.log("test ", pkg+"."+command.processId)
-                let executor_index = self._config.map(item => item.name).indexOf(pkg+"."+command.processId);
-                // console.log("index: ", executor_index)
-                if(executor && executor_index >= 0){
-                    reject(new ScriptError("Dublicate command implementation: '" + command.processId ))
-                }
-                executor = (executor_index >=0)
-                            ? self._config[executor_index]
-                            : executor                
-            })
-        }    
-    
-        
-        executor = (!executor)
-                    ? self._config[self._config.map(item => item.name).indexOf(command.processId)]
-                    : executor
-        
-        // console.log("!founded ", executor);
-
-        // if(command.processId.indexOf("@") == 0)
-        //     executor = processInctruction[command.processId];
-
-        if (!executor || !executor.execute) {
-            reject(new ScriptError("Command '" + command.processId + "'  not implemented"))
-            return
-        }
-
-        try {
-           
-            // console.log("PREPARE: ", command)
-            if(command.processId != "@async")
-                command = applyContext(command, self._state.storage)
-            // console.log("EXEC: ", command)
-            
-            var s = executor.execute(command, self._state, config)
-            if (s.then) {
-                s
-                    .then(function(state) {
-                        resolve(state)
-                    })
-                    .catch(function(e) {
-                        reject(e)
-                    })
-
-            } else {
-                resolve(s)
-            }
-        } catch (e) { 
-            reject(e) 
-        }
-    })
-}
-
-Script.prototype.executeBranch = function(commandList, state){
-    // console.log("BRANCH: ", commandList)
-    var self = this;
-    if (state) {
+    executeBranch(commandList, state){
+        // console.log("BRANCH: ", commandList)
+        let self = this;
+        if (state) {
             self._state.locale = state.locale || self._state.locale;
             self._state.storage = state.storage || self._state.storage;
         }
-    return Promise
+        return Promise
             .reduce(commandList, function(cp, command, index) {
                 return new Promise(function(resolve, reject) {
                     if(self._state.head.type == "error")
-                    reject(new ScriptError(self._state.head.data.message))    
+                        reject(new ScriptError(self._state.head.data.message))
                     setTimeout(function(){
                         self.execute(command, self._state, self._config)
                             .then(function(newState) {
@@ -561,92 +555,81 @@ Script.prototype.executeBranch = function(commandList, state){
                             .catch(function(e) {
                                 reject(new ScriptError("Script "+self.id+" command ["+index+"] '"+command.processId+"': "+e.toString()))
                             })
-                    }, 0)    
+                    }, 0)
                 })
             }, 0)
-}
-
-Script.prototype.getResult = function(o){
-    var pathes = $plain(o).map(function(item){
-        return {
-            path: item.path,
-            value: (item.value instanceof Promise) ? item.value.toString() : item.value
-        }
-    })
-    return (util.isArray(o)) ? $apply([], pathes) : $apply({}, pathes)
-}
-
-Script.prototype.run = function(state) {
-    var self = this;
-    return new Promise(function(resolve, reject) {
-        if (!self._script) {
-            reject(new ScriptError("Cannot run undefined script"))
-        }
-        if (self._config.length == 0) {
-           reject(new ScriptError("Interpretator not configured"))
-        }
-
-        try {
-            var commandList = new parser()
-                .config(self._config)
-                .parse(self._script);
-        } catch (e) {
-            reject(new ScriptError(e.toString()))
-        }
-        // console.log("Parsed script: ",commandList)
-        commandList = processInctruction.branches(commandList, state)
-
-        self.executeBranch(commandList, state)
-            .then(function() {
-                if(self._state.head.data instanceof Promise){
-                    resolve({
-                        type:"promise",
-                        data:self._state.head.data.toString()
-                    })
-                }
-                resolve(self.getResult(self._state.head))
-            })
-            .catch(function(e) {
-                reject(new ScriptError("On "+self._host+": "+e.toString()))
-            })
-    })
-
-}
-
-Script.prototype.script = function() {
-    if (arguments.length > 0) {
-        this._script = arguments[0];
-        return this;
     }
-    return this._script;
-}
 
-Script.prototype.state = function() {
-    if (arguments.length > 0) {
-        this._state = arguments[0];
-        return this;
+    getResult(o){
+        let pathes = $plain(o).map(function(item){
+            return {
+                path: item.path,
+                value: (item.value instanceof Promise) ? item.value.toString() : item.value
+            }
+        });
+        return (util.isArray(o)) ? $apply([], pathes) : $apply({}, pathes)
     }
-    return this._state;
-}
 
-Script.prototype.config = function() {
-    if (arguments.length > 0) {
-        this._config = this._config.concat(arguments[0]);
-        return this;
+    run(state) {
+        let self = this;
+        return new Promise(function(resolve, reject) {
+            if (!self._script) {
+                reject(new ScriptError("Cannot run undefined script"))
+            }
+            if (self._config.length == 0) {
+                reject(new ScriptError("Interpretator not configured"))
+            }
+            let commandList;
+            try {
+                commandList = new parser()
+                    .config(self._config)
+                    .parse(self._script);
+            } catch (e) {
+                reject(new ScriptError(e.toString()))
+            }
+            // console.log("Parsed script: ",commandList)
+            commandList = processInctruction.branches(commandList, state)
+
+            self.executeBranch(commandList, state)
+                .then(function() {
+                    if(self._state.head.data instanceof Promise){
+                        resolve({
+                            type:"promise",
+                            data:self._state.head.data.toString()
+                        })
+                    }
+                    resolve(self.getResult(self._state.head))
+                })
+                .catch(function(e) {
+                    reject(new ScriptError("On "+self._host+": "+e.toString()))
+                })
+        })
+
     }
-    return this._config;
+
+    script() {
+        if (arguments.length > 0) {
+            this._script = arguments[0];
+            return this;
+        }
+        return this._script;
+    }
+
+    state() {
+        if (arguments.length > 0) {
+            this._state = arguments[0];
+            return this;
+        }
+        return this._state;
+    }
+
+    config() {
+        if (arguments.length > 0) {
+            this._config = this._config.concat(arguments[0]);
+            return this;
+        }
+        return this._config;
+    }
 }
 
 module.exports = Script;
-
-
-
-
-
-
-
-
-
-
-
-
