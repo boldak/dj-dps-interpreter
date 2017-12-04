@@ -4,8 +4,9 @@ const jp = require("jsonpath");
 const copy = require('dj-utils').copy;
 const $apply = require('dj-utils').apply;
 const $plain = require('dj-utils').plain;
-// var logger = require("../log").global;
 const util = require("util");
+const interpreterUtils = require("./utils/interpreterUtils");
+// var logger = require("../log").global;
 // var setVar = require("./impl/var/set").implementation;
 
 class ScriptError extends Error{
@@ -240,21 +241,6 @@ var processInctruction = {
         },  
 
         execute: function(command, state, config) {
-                let getProperty = function(d, path) {
-                        let result = undefined;
-                        jp.apply(d, path, function(value) {
-                            if (util.isUndefined(result)) {
-                                result = value;
-                            } else {
-                                if (!util.isArray(result)) {
-                                    result = [result]
-                                }
-                                result.push(value)
-                            }
-                            return value
-                        });
-                        return result
-                    };
                 let bb = branchIndex++;
                 // console.log("@async "+bb)
                 return new Promise(function(resolve, reject) {
@@ -288,7 +274,7 @@ var processInctruction = {
                                 command.settings.sync.vars.forEach(function(_var,index){
                                     if(util.isString(_var)){
                                      let value = copy(
-                                        getProperty(
+                                         interpreterUtils.getProperty(
                                             _state.storage,
                                              command.settings.sync.values[index]
                                     ));
@@ -429,79 +415,27 @@ class Script{
 
     execute(command, state, config) {
 
-        let getProperty = function(d, path) {
-            try{
-                var result = undefined;
-                jp.apply(d, path, function(value) {
-                    if (util.isUndefined(result)) {
-                        result = value;
-                    } else {
-                        if (!util.isArray(result)) {
-                            result = [result]
-                        }
-                        result.push(value)
-                    }
-                    return value
-                })
-                return result
-            } catch (e){
-                return undefined
-            }
-        };
-
-        let applyContext = function(o, c) {
-            if (util.isObject(o)) {
-                for (let key in o) {
-                    o[key] = applyContext(o[key], c)
-                }
-                return o
-            }
-            if (util.isArray(o)) {
-                return o.map(function(item) {
-                    return applyContext(item, c)
-                })
-            }
-            if (util.isString(o)) {
-                if (o.match(/^\{\{[\s\S]*\}\}$/)) {
-                    let key = o.substring(2, o.length - 2);
-                    let r = getProperty(c, key);
-                    // return (r) ? copy(r) : null
-                    return (r) ? r : null
-                } else {
-                    return o
-                }
-            }
-            return o;
-        };
-
-        let self = this;
-
         return new Promise(function(resolve, reject) {
             let executor;
             // console.log("state: ", state)
             if(state.packages){
                 state.packages.forEach((pkg) => {
                     // console.log("test ", pkg+"."+command.processId)
-                    let executor_index = self._config.map(item => item.name).indexOf(pkg+"."+command.processId);
+                    let executor_index = this._config.map(item => item.name).indexOf(pkg+"."+command.processId);
                     // console.log("index: ", executor_index)
                     if(executor && executor_index >= 0){
                         reject(new ScriptError("Dublicate command implementation: '" + command.processId ))
                     }
                     executor = (executor_index >=0)
-                        ? self._config[executor_index]
+                        ? this._config[executor_index]
                         : executor
                 })
             }
 
 
             executor = (!executor)
-                ? self._config[self._config.map(item => item.name).indexOf(command.processId)]
+                ? this._config[this._config.map(item => item.name).indexOf(command.processId)]
                 : executor;
-
-            // console.log("!founded ", executor);
-
-            // if(command.processId.indexOf("@") == 0)
-            //     executor = processInctruction[command.processId];
 
             if (!executor || !executor.execute) {
                 reject(new ScriptError("Command '" + command.processId + "'  not implemented"))
@@ -512,10 +446,10 @@ class Script{
 
                 // console.log("PREPARE: ", command)
                 if(command.processId != "@async")
-                    command = applyContext(command, self._state.storage);
+                    command = interpreterUtils.applyContext(command, this._state.storage);
                 // console.log("EXEC: ", command)
 
-                let s = executor.execute(command, self._state, config);
+                let s = executor.execute(command, this._state, config);
                 if (s.then) {
                     s
                         .then(function(state) {
@@ -536,24 +470,23 @@ class Script{
 
     executeBranch(commandList, state){
         // console.log("BRANCH: ", commandList)
-        let self = this;
         if (state) {
-            self._state.locale = state.locale || self._state.locale;
-            self._state.storage = state.storage || self._state.storage;
+            this._state.locale = state.locale || this._state.locale;
+            this._state.storage = state.storage || this._state.storage;
         }
         return Promise
             .reduce(commandList, function(cp, command, index) {
                 return new Promise(function(resolve, reject) {
-                    if(self._state.head.type == "error")
-                        reject(new ScriptError(self._state.head.data.message))
+                    if(this._state.head.type == "error")
+                        reject(new ScriptError(this._state.head.data.message))
                     setTimeout(function(){
-                        self.execute(command, self._state, self._config)
+                        this.execute(command, this._state, this._config)
                             .then(function(newState) {
-                                self._state = newState
-                                resolve(self._state)
+                                this._state = newState;
+                                resolve(this._state)
                             })
                             .catch(function(e) {
-                                reject(new ScriptError("Script "+self.id+" command ["+index+"] '"+command.processId+"': "+e.toString()))
+                                reject(new ScriptError("Script "+this.id+" command ["+index+"] '"+command.processId+"': "+e.toString()))
                             })
                     }, 0)
                 })
@@ -571,37 +504,36 @@ class Script{
     }
 
     run(state) {
-        let self = this;
         return new Promise(function(resolve, reject) {
-            if (!self._script) {
+            if (!this._script) {
                 reject(new ScriptError("Cannot run undefined script"))
             }
-            if (self._config.length == 0) {
+            if (this._config.length == 0) {
                 reject(new ScriptError("Interpretator not configured"))
             }
             let commandList;
             try {
                 commandList = new parser()
-                    .config(self._config)
-                    .parse(self._script);
+                    .config(this._config)
+                    .parse(this._script);
             } catch (e) {
                 reject(new ScriptError(e.toString()))
             }
             // console.log("Parsed script: ",commandList)
             commandList = processInctruction.branches(commandList, state)
 
-            self.executeBranch(commandList, state)
+            this.executeBranch(commandList, state)
                 .then(function() {
-                    if(self._state.head.data instanceof Promise){
+                    if(this._state.head.data instanceof Promise){
                         resolve({
                             type:"promise",
-                            data:self._state.head.data.toString()
+                            data:this._state.head.data.toString()
                         })
                     }
-                    resolve(self.getResult(self._state.head))
+                    resolve(this.getResult(this._state.head))
                 })
                 .catch(function(e) {
-                    reject(new ScriptError("On "+self._host+": "+e.toString()))
+                    reject(new ScriptError("On "+this._host+": "+e.toString()))
                 })
         })
 
