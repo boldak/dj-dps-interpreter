@@ -1,4 +1,5 @@
-const interpreter = require('../src/script');
+const interpreter = require("../src/script");
+let commands = require("dj-dps-commands");
 
 const script = `
 meta('$..dataset.topics')
@@ -45,6 +46,11 @@ get('dm')
 cache()
 `;
 
+// console.log(commands);
+
 let context = {};
-let dpsInterpreter = new interpreter(null, script, context);
-dpsInterpreter.run(dpsInterpreter.state());
+let state = {
+    packages: commands
+};
+let dpsInterpreter = new interpreter(commands, script, context);
+dpsInterpreter.run();
