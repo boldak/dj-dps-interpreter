@@ -1,50 +1,21 @@
 const interpreter = require("../src/script");
 let commands = require("dj-dps-commands");
 
-const script = `
-meta('$..dataset.topics')
-distinct()
-set('tg')
-
-meta('$..dataset.label')
-distinct()
-translate()
-set('ds')
-
-<?javascript
-
-  var dm = [];
-  
-  $context.ds.forEach(function(d, index){
-    
-    var row = [] 
-    for(var i = 0; i<$context.ds.length; i++){ 
-      row.push(
-          _.intersection(
-              $context.tg[index],
-              $context.tg[i]).length
-              )
-    }
-     var max = row[index]
-     dm.push({
-         key: $context.ds[index],
-         values: row.map(function(v,ind){
-             return {
-                 label: $context.ds[ind],
-                 value: v/max
-                 
-             }
-         })
-     })   
- })
-
-  $context.dm = dm;
-
+const script = `@async(promise:'p[0]')
+<?json
+{"index":0}
 ?>
+set('data')
+@sync(vars:['data[0]'], values:['data'])
 
-get('dm')
-cache()
-`;
+@async(promise:'p[1]')
+<?json
+{"index":1}
+?>
+set('data')
+@sync(vars:['data[1]'], values:['data'])
+@all({{p}})
+get('data')`;
 
 // console.log(commands);
 
@@ -53,4 +24,4 @@ let state = {
     packages: commands
 };
 let dpsInterpreter = new interpreter(commands, script, context);
-dpsInterpreter.run();
+dpsInterpreter.run(dpsInterpreter.state()).then(console.log,console.log);
