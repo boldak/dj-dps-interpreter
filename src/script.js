@@ -559,7 +559,18 @@ Script.prototype.executeBranch = function(commandList, state){
                                 resolve(self._state)
                             })
                             .catch(function(e) {
-                                reject(new ScriptError("Script "+self.id+" command ["+index+"] '"+command.processId+"': "+e.toString()))
+                                let lineIndex = parser.ErrorMapper().findLineOfCommandStart(self._script, index)+1;
+                                let text = parser.ErrorMapper().findTextOfCommand(self._script, index);
+                                reject(new ScriptError(
+                                        `
+Detect error at line ${lineIndex}:
+...
+${text}
+^
+${e.toString()}
+`
+                                ))        
+                                        
                             })
                     }, 0)    
                 })
