@@ -591,7 +591,7 @@ Script.prototype.getResult = function(o){
 }
 
 Script.prototype.run = function(state) {
-    console.log("Run with state", state)
+    // console.log("Run with state", state)
     var self = this;
     return new Promise(function(resolve, reject) {
         if (!self._script) {
