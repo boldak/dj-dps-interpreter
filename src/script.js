@@ -268,6 +268,7 @@ var processInctruction = {
 
                     s._state = {
                         locale: state.locale,
+                        client: state.client,
                         instance: s,
                         storage: storage,
                         promises:{},
@@ -545,6 +546,8 @@ Script.prototype.executeBranch = function(commandList, state){
     var self = this;
     if (state) {
             self._state.locale = state.locale || self._state.locale;
+            self._state.client = state.client || self._state.client;
+            
             self._state.storage = state.storage || self._state.storage;
         }
     return Promise
@@ -588,6 +591,7 @@ Script.prototype.getResult = function(o){
 }
 
 Script.prototype.run = function(state) {
+    console.log("Run with state", state)
     var self = this;
     return new Promise(function(resolve, reject) {
         if (!self._script) {
